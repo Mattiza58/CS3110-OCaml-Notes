@@ -15,14 +15,14 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: "https://CS3110-OCaml-Notes.github.io",
+  url: "https://mattiza58.github.io",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: "/",
+  baseUrl: "/CS3110-OCaml-Notes/",
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: "CS3110-OCaml-Notes", // Usually your GitHub org/user name.
+  organizationName: "Mattiza58", // Usually your GitHub org/user name.
   projectName: "CS3110-OCaml-Notes.github.io", // Usually your repo name.
   trailingSlash: false,
   deploymentBranch: "gh-pages",
