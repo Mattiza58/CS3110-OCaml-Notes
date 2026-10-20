@@ -116,11 +116,11 @@ const config: Config = {
           items: [
             {
               label: "Notes",
-              to: "/docs/notes",
+              to: "/docs/notes/welcome",
             },
             {
               label: "Assignments",
-              to: "/docs/assignments",
+              to: "/docs/assignments/a2",
             },
           ],
         },
