@@ -1,6 +1,8 @@
-# Website
+# CS 3110 Notes 🐪
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+Built with [Docusaurus](https://docusaurus.io/), this website contains all my notes for Cornell's CS 3110 Functional Programming and Data Structures course in OCaml. Most of the notes were taken using Professor Michael Clarkson's in-class lecture notes with the textbook, [OCaml Programming: Correct + Efficient + Beautiful](https://cs3110.github.io/textbook/cover.html) being another fantastic resource that Clarkson contributed to significantly. 
+
+Feel free to fork the repo and expand upon my own notes to your liking. 
 
 ## Installation
 
@@ -26,18 +28,3 @@ npm run build
 
 This command generates static content into the `build` directory and can be served using any static contents hosting service.
 
-## Deployment
-
-Using SSH:
-
-```bash
-USE_SSH=true npm run deploy
-```
-
-Not using SSH:
-
-```bash
-GIT_USER=<Your GitHub username> npm run deploy
-```
-
-If you are using GitHub Pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
