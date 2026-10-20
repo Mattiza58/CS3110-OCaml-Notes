@@ -23,7 +23,7 @@ const config: Config = {
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
   organizationName: "CS3110-OCaml-Notes", // Usually your GitHub org/user name.
-  projectName: "CS3110-OCaml-Notes", // Usually your repo name.
+  projectName: "CS3110-OCaml-Notes.github.io", // Usually your repo name.
   trailingSlash: false,
   deploymentBranch: "gh-pages",
 
