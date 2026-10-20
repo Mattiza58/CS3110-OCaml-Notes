@@ -15,15 +15,17 @@ const config: Config = {
   },
 
   // Set the production url of your site here
-  url: "https://your-docusaurus-site.example.com",
+  url: "https://CS3110-OCaml-Notes.github.io",
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
   baseUrl: "/",
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: "Mattiza58", // Usually your GitHub org/user name.
-  projectName: "CS 3110 Notes", // Usually your repo name.
+  organizationName: "CS3110-OCaml-Notes", // Usually your GitHub org/user name.
+  projectName: "CS3110-OCaml-Notes", // Usually your repo name.
+  trailingSlash: false,
+  deploymentBranch: "gh-pages",
 
   onBrokenLinks: "throw",
 
@@ -43,8 +45,7 @@ const config: Config = {
           sidebarPath: "./sidebars.ts",
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
-          editUrl:
-            "https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/",
+          editUrl: "https://github.com/Mattiza58/CS3110-OCaml-Notes",
         },
         blog:
           // {
@@ -75,7 +76,8 @@ const config: Config = {
     image: "img/docusaurus-social-card.jpg",
     tableOfContents: {
       minHeadingLevel: 2,
-      maxHeadingLevel: 5,},
+      maxHeadingLevel: 5,
+    },
     colorMode: {
       respectPrefersColorScheme: true,
     },
@@ -100,7 +102,7 @@ const config: Config = {
         },
         // { to: "/blog", label: "Blog", position: "left" },
         {
-          href: "https://github.com/facebook/docusaurus",
+          href: "https://github.com/Mattiza58/CS3110-OCaml-Notes",
           label: "GitHub",
           position: "right",
         },
