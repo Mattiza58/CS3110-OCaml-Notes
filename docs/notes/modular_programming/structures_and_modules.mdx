@@ -1,0 +1,50 @@
+---
+toc_min_heading_level: 2
+---
+
+# Structures and Modules
+
+**Modularity** allows for programs to scale in complexity. Think in Java with classes, however, modules can also be implemented in OCaml.
+Below is a list of simialrities between implementations of modules in both programming languages.
+
+:::warning
+
+This table is just for comparision purposes. There are *many* differences between how each language implements modules.
+
+:::
+
+|   | Java | OCaml | 
+|---|------|-------|
+| **Namespaces** | Classes, packages    | Structures    | 
+| **Interfaces** | Interface    | Signatures     |  
+| **Encapsulation** | `public`, `private`    | Sealing, abstract types     |  
+| **Code reuse** | Subtyping, inheritence  | Functors, includes     | 
+
+## Structures
+A **structure** is a bundle of definitions. In a sense, it is kind of like a record where we have to specify names and values. However,
+we can do *much* more with modules such as define exceptions, new types, etc. We use the `struct` and `end` keywords for the body of the structure, and we then 
+bind that structure to a name which is a **module definition**.
+
+```OCaml
+module ModuleName = struct
+    (* items...*)
+end
+```
+
+For example, a module could look like this:
+
+```Ocaml
+module ModuleName = struct
+    let inc x = x + 1
+    type primary_colors = Red | Green | Blue
+    exception Oops
+end
+```
+
+:::info 
+The name of a module must start with a capital and is formatted in CamelCase. Items can be any definition such as
+`type`, `exception` and even another **module**
+:::
+
+
+

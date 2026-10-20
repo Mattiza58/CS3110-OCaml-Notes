@@ -1,0 +1,61 @@
+---
+toc_min_heading_level: 2
+---
+
+# Functors
+
+## Definition
+
+A functor is simply a "function" from modules to modules. So, in put, functors are functions that operate on 
+**module values**.
+
+:::info
+
+Functors can only take in **modules** not module types.
+
+:::
+
+_Example:_
+
+```ocaml 
+module type ModuleType = sig 
+    val x: int
+end
+
+module IncrX(M: ModuleType) = struct
+    let x = M.x + 1
+end
+```
+
+This is an example taken from the [Ocaml Textbook](https://cs3110.github.io/textbook/chapters/modules/functors.html). Essentially,
+`IncrX` is the name of the functor which takes in a **module** `M` of type `ModuleType`. Its output is the structure `struct
+  let x = M.x + 1
+end`. Thus, the value that `x` has depends on the module `M`.
+
+## Applying a Functor
+
+Think of functors as just like functions, meaning we can apply them.
+
+```ocaml
+(* Define a module *)
+module A = struct let x = 0 end
+(* module A : sig val x : int end*)
+
+(* Query the value of x from module A *)
+A.x 
+(* - : int = 0 *)
+
+(* Assign a module B by calling IncrX on A which returns a module, but with an incremented x value *)
+module B = incrX (A)
+(* module B : sig val x : int end *)
+
+(* Query the value of x from module B *)
+B.x 
+(* - : int = 1 *)
+
+```
+
+From here, we basically created a **new** module `B` that has an incremented value of x. In this case, `B` is bounded
+by the structure `struct let x = 1 end`
+
+
