@@ -4,6 +4,8 @@ Built with [Docusaurus](https://docusaurus.io/), this website contains all my no
 
 Feel free to fork the repo and expand upon my own notes to your liking. 
 
+**Visit the site [here](https://mattiza58.github.io/CS3110-OCaml-Notes/)** 
+
 ## Installation
 
 ```bash
