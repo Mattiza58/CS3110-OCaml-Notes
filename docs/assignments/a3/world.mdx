@@ -1,0 +1,81 @@
+# World
+A world must handle the following properties:
+
+1. Own the labrynth's `terrain` and mutable grid operations
+2. Bound checks (function)
+3. Check for lambda at a cell
+4. Remove a collected lambda
+5. Finding legal terrain cells
+
+:::info
+2D array must be encapsulated and should be updated in place rather than creating new copies
+:::
+
+## World Structure
+
+```ocaml title="world.ml"
+module World = struct
+  type terrain =
+    | Wall
+    | Floor
+    | Exit
+
+  type cell = {
+    mutable terrain : terrain;
+    mutable lambda : int option;
+    mutable discovered : bool;
+  }
+
+  (* array *)
+  type t = cell array array
+
+  let base_array  =
+    Array.init_matrix 13 25 (fun x y ->
+        match (x, y) with
+        | 0, _ | _, 0 | 12, _ | _, 24 | 6, _ | _, 12 ->
+            { terrain = Wall; lambda = None; discovered = false }
+        | 9, 6 -> { terrain = Exit; lambda = None; discovered = false }
+        | _, _ -> { terrain = Floor; lambda = None; discovered = false })
+
+  let roll rng a b = a + Random.State.int rng b
+  
+  let doorway row col maze = { (maze.(row).(col)) with terrain = Floor }
+
+  let init_maze (rng : Random.State.t) =
+    let maze = base_array in
+    let upper, lower, left, right =
+      (roll rng 1 5, roll rng 7 11, roll rng 1 11, roll rng 13 23)
+    in
+    let () = maze.(upper).(12).terrain <- Floor in
+    let () = maze.(lower).(12).terrain <- Floor in
+    let () = maze.(6).(left).terrain <- Floor in
+    let () = maze.(6).(right).terrain <- Floor in
+    maze
+  
+  let get_available_cells maze = Array.map (Array.map (fun cell -> (
+    match cell with |
+    {terrain = Floor; lambda = none; discovered = false} -> true |
+    _ -> false
+  )))
+
+let rand_lambda score rng available_cells = let rand_row, rand_col = roll rng 1 11, roll rng 23 in 
+    if (available_cells.(rand_row).(rand_col))
+
+let scatter_lambdas rng maze available_cells = 
+  let count = ref 0 in while !count < 6 do if !count < 2 then let rand_row, rand_col = roll rng 1 11, roll rng 1 23 in 
+  if maze.(roll rng 1 11).(roll rng 1 23).lambda <- Some 1 else 
+
+  (** [check_wall cell] returns a bool of whether the given [cell] is a wall or
+      not *)
+  let check_wall cell = if cell.terrain == Wall then true else false
+
+  (** [check_lambda cell] returns a bool of whether the given [cell] contains a
+      lambda *)
+  let check_lambda cell = if cell.lambda == None then false else true
+
+  let check_bounds pos = if pos.terrain = Wall then false else true
+end
+
+
+```
+

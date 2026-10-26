@@ -1,17 +1,107 @@
 # Promises
 
+## Promise state transitions
 
+- Sequential: non-overlapping in duration
+- Concurrent: overlapping in duration
 
+**Source of parallelism: Hardware**
+
+**Concurrency managed by: Operating system and `Lwt`**
+
+## OS and I/O
+
+Your program never touches the hardware directly
+- So the OS has to help move bytes acorss the hardware/software boundary
+
+Your prorgam asks OS to move bytes by making **system calls** to functions by OS API
+
+### Channel
+- A **channel** is a unidirectional stream of bytes mediated by OS between a program and I/O device
+
+*Unidirectional: program -> device, or device -> prorgam*
+
+*Stream: accepets/delivers data in order, like water through type*
 
 ```ocaml
-# 1 + 2;;
-- : int = 3
-# "a" ^ "bc";;
-- : string = "abc"
+type in_channel
+
+val open_in: string -> in_channel
+(** Open file for reading *)
+
+val input_line: in_channel -> string
+(** Read from channel until newline *)
+
+val close_in: in_channel -> until
+(** Close channel **)
+```
+### Terminal
+```ocaml
+val stdout: out_channel
+(** Standard output, use. screen *)
+
+val print_string: string -> unit
+(** Write string to stdout *)
+
+val stdin: in_channel
+(** Standard input, usu. keyboard*)
+
+val read_line: unit -> string
+(** Read from stdin until newline *)
 ```
 
-```javascript
-const total = 5 + 10;
-console.log(`The result is: ${total}`);
+:::note
+Programs "block" during synchronous I/O
+:::
+
+**Block:** as in, an obstacle 
+
+## Async I/O
+
+In `Lwt`, *non-blocking* I/O functions let the caller continue without waiting for the requested I/O to finish
+
+- Ex. Netflix wants to be reading many files and distributing to many viewers over the network
+
+### Async With Promises
+
+:::info
+`Lwt` I/O functions return promises!
+:::
+
+**Blocking**:
+```ocaml
+let str = Stdlib.(input_line stdin) in 
+(* rest of program *)
 ```
+
+
+**Non-blocking**:
+```ocaml
+let p_str = 
+    Lwt_io.(read_line stdin) in
+    (* rest of program *)
+```
+**Two ways to use promises**
+
+1. **Wait** - Decide that there is one main promise that you need, and tell `Lwt`
+: when that promise is resolved, you want the result
+
+2. **Schedule** - Decide that when a give promise is duiflled, you already know what work you want to do with the result. Give `Lwt` 
+a function that it can run on your behalf
+
+#### Wait call `run`
+```ocaml
+Lwt_main.run : 'a Lwt.t -> 'a
+```
+
+- Call `run` from your prorgam to start `Lwt` main loop aka scheduler
+- `run p` will not return until `p` is resolved
+
+#### Schedule: Call `map`
+
+```ocaml
+val map : ('a -> 'b) -> 'a Lwt.t -> 'b Lwt.tell
+(** [map f p ] schedules callback [f] to run after [p] is fufilled *)
+````
+
 

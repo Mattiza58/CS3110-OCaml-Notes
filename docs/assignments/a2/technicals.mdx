@@ -1,0 +1,466 @@
+# Technical Questions
+
+## Reading Market Data
+
+Let's use this row from the handout, which is located in `data/handout.csv`
+
+```title="handout.csv"
+date,ALFA,BETA
+```
+
+Within `market.ml`, `Csv.load` produces a **list** of rows, with each row represented as a list of strings
+
+```ocaml title="market.ml"
+let load filename =
+  try
+    match Csv.load filename with
+    | ("date" :: (_ :: _ as securities)) :: (_ :: _ as data) ->
+        Ok { securities; rows = List.map (parse_row securities) data }
+    | _ ->
+        raise (MarketError "Expected a date header, securities, and price rows")
+["ALFA"; "BETA"]
+```
+
+
+
+`Market.load` seperates the head from the data. Removing `"date"` from the header leaves
+
+```ocaml 
+["ALFA"; "BETA"]
+```
+
+In `parse_row` the pattern `data :: prices` seperates the date from the price strngs. Then from the 
+`Money` module, `Money.convert_cents` converts `"12.00"` into `1200` and `"20.00"` into `2000` 
+
+Then using `List.combine`, we pair security names and prices by position. Remember that `List.combine` takes in
+2 lists of the same size and returns an association list.
+
+Thus we get a representation of each row is 
+
+```ocaml 
+{
+    date = "2024-01-03"
+    prices = [("ALFA", 1200), ("BETA", 2000)]
+}
+```
+
+## Advancing the simulation 
+
+The main loop is located in `Backtest.advance` where we perform each operation in order:
+
+- Ask strategy for orders and next state
+- Execute orders
+- Calculate portfolio value
+- Record the snapshot
+- Continue to next row
+
+
+## Processing orders in a sequence 
+
+`Portfolio.apply_orders` uses `List.fold_left` where the accumulator contains the latest portfolio and 
+collected outcomes. Each order receives the portfolio produced the preceding order.
+
+```ocaml title="portfolio.ml"
+
+(** [apply_order portfolio prices order] executes an order at the supplied
+    current prices or returns the unchanged portfolio with a rejection reason.
+    Nonpositive quantities, securities absent from [prices], insufficient cash,
+    and insufficient shares cause rejection. [prices] must be a valid market
+    row's security/price associations, with unique names and positive cent
+    prices. The input portfolio is never mutated. *)
+let apply_order portfolio prices order =
+  let security, quantity =
+    match order with
+    | Order.Buy (security, quantity) | Order.Sell (security, quantity) ->
+        (security, quantity)
+  in
+  let reject reason = (portfolio, Order.Rejected reason) in
+  if quantity <= 0 then reject Order.Invalid_quantity
+  else
+    match List.assoc_opt security prices with
+    | None -> reject Order.Unknown_security
+    | Some price -> (
+        let held = shares portfolio security in
+        let amount = quantity * price in
+        let execute cash quantity =
+          ( { cash; holdings = set_holding security quantity portfolio.holdings },
+            Order.Executed )
+        in
+        match order with
+        | Order.Buy _ ->
+            if amount > portfolio.cash then reject Order.Insufficient_cash
+            else execute (portfolio.cash - amount) (held + quantity)
+        | Order.Sell _ ->
+            if quantity > held then reject Order.Insufficient_shares
+            else execute (portfolio.cash + amount) (held - quantity))
+
+let apply_orders portfolio prices orders =
+  let portfolio, outcomes =
+    List.fold_left
+      (fun (portfolio, outcomes) order ->
+        let portfolio, outcome = apply_order portfolio prices order in
+        (portfolio, outcome :: outcomes))
+      (portfolio, []) orders
+  in
+  (portfolio, List.rev outcomes)
+
+```
+
+Suppose an account owns 10 AFLA and has no cash. Today AFLA costs $12 and BETA costs $20
+
+```ocaml
+[Sell ("ALFA", 10); Buy ("BETA", 6)]
+```
+
+Selling first produces $120. The purchase can then spend that $120 on 6 BETA shares.
+
+Reversing the order changes the result:
+```ocaml
+[Buy ("BETA", 6); Sell ("ALFA", 10)]
+```
+
+The purchase is rejected because the account initially has no cash.
+
+So, `apply_order` rejects
+- Zero or negative quantities.
+- Unknown securities.
+- Purchases requiring more cash than is available.
+- Sales requiring more shares than are held.
+
+## Accounting Precisely 
+
+Let's use our buy-and-hold example from 'handout.csv'. Say we start with $10.05, holding ALFA.
+
+On Janaury 2nd, ALFA costs $10.00. In cents:
+
+```
+Initial cash: 1005
+Price:        1000
+Shares:       1005 / 1000 = 1
+Remaining:    1005 − 1000 = 5 cents
+```
+Integer division is appropiate here because only whole shares are allowed
+
+Percentage return needs fractional division. `Backtest.summarize` calculates:
+
+```ocaml title="backtest.ml"
+(** [summarize name initial_cash initial_date history] is the completed result
+    for a run named [name], or an error if there are no snapshots. Requires
+    positive initial cents and snapshots in reverse date order for a simulation
+    beginning on [initial_date]. The returned history is chronological and the
+    percentage return compares final value to [initial_cash]. *)
+let summarize name initial_cash initial_date = function
+  | [] -> Error "Cannot backtest a market without price rows"
+  | final :: _ as history ->
+      Ok
+        {
+          strategy = name;
+          initial_cash;
+          initial_date;
+          final_date = final.date;
+          final_portfolio = final.portfolio;
+          final_value = final.value;
+          total_return =
+            float_of_int (final.value - initial_cash)
+            /. float_of_int initial_cash *. 100.;
+          history = List.rev history;
+        }
+```
+Where specifically the calucluation occurs with
+```ocaml
+total_return = float_of_int (final.value - initial_cash)
+/. float_of_int initial_cash *. 100.
+```
+
+## Hiding Strategy State
+
+The common signature for a strategy is in `Strategy.S`
+
+```ocaml title="strategy.ml"
+module type S = sig
+  type state
+
+  val name : string
+  val init : init_context -> (state, string) result
+  val step : state -> observation -> Order.t list * state
+end
+```
+
+:::info
+Our `type state` is abstract. Clients can see it, but cannot see its representation
+:::
+
+Then, we seal each implementation. For example with momentum:
+
+```ocaml
+module Momentum : S = struct
+  ...
+end
+```
+
+Each startegy uses **different** state implementations:
+
+**Cash:** its private state is `unit` as no memory is needed
+**Buy-and-hold:** `Waiting security` or `Done`
+**Momentum: ** Needs Header-order securities, previous prices, and previous target
+
+:::danger
+Clients cannot construct Momentum's internal record or access its `previous` field.
+They can obtain a valid state through `init` and pass it into `step` and carry that state foward
+:::
+
+## Making stateful decisions
+
+Let's use `handout.csv` again and start with $100.00 cash.
+
+On Janaury 2nd, the momentum stores the prices and leaves its target as `None`. Thus,
+it proposes no orders.
+
+**Before Janaury 3rd:**
+```
+Previous prices: ALFA $10.00, BETA $25.00
+Previous target: None
+Portfolio:       $100.00 cash, no shares
+```
+
+Now, ALFA goes to $12.00 and BETA goes to $20.00. 
+
+Since ALFA has the largest **positive one day increase**, Momentum selects ALFA as its target
+
+Now, Momentum proposes 
+
+```ocaml
+[Buy ("ALFA", 8)]
+```
+
+The returned state remembers January 3rd's rpice and `Some "ALFA"`. After execution,
+the porfolio has $4.00 cash and 8 ALFA shares.
+
+Before January 4th, the returned state becomes the input state. Current prices are ALFA $11.00 and BETA
+$21.00. Since BETA now has the largest one day increase, Momentum chooses that as its target and proposes
+selling all the shares of ALFA and buying as much shares of BETA instead.
+
+Momentum proposes
+
+```ocaml
+[Sell ("ALFA", 8); Buy ("BETA", 4)]
+```
+
+This is all calucated in `Momentum.step` where previous prices determine gains, while the previous
+target determines whether a switch is needed.
+
+```ocaml title="strategy.ml"
+  let step state observation =
+    let orders, target =
+      match state.previous with
+      | None -> ([], None)
+      | Some previous -> (
+          match select_target state.securities previous observation.prices with
+          | None -> ([], state.target)
+          | Some security as target ->
+              if target = state.target then ([], target)
+              else (switch_orders observation security, target))
+    in
+    (orders, { state with previous = Some observation.prices; target })
+```
+
+## Keeping the engine independent
+
+Adding a fourth strategy would require a new module implementing `Strategy.S`
+
+You would also need to update `command.ml` and `main.ml` so the new strategy can be selected. New options, tests, and documentation
+would be added as needed. The existing engine would contine to receive the same operations.
+
+```ocaml title="main.ml"
+let simulate (command : Command.t) market =
+  let run =
+    match command.strategy with
+    | Command.Cash ->
+        Backtest.run ~name:Strategy.Cash.name ~init:Strategy.Cash.init
+          ~step:Strategy.Cash.step
+    | Command.Buy_and_hold ->
+        Backtest.run ~name:Strategy.Buy_and_hold.name
+          ~init:Strategy.Buy_and_hold.init ~step:Strategy.Buy_and_hold.step
+    | Command.Momentum ->
+        Backtest.run ~name:Strategy.Momentum.name ~init:Strategy.Momentum.init
+          ~step:Strategy.Momentum.step
+  in
+  run ~options:command.options market ~initial_cash:command.initial_cash
+```
+Backtest calls the supplied `init` and `step` functions. It does not branch on momentum, cash,
+or buy-and-hold, and does not inspect their states.
+
+Market, Portfolio, Order, and Report can remain unchanged if the new strategy uses the existing order and observation types
+
+## Preventing future-data access
+
+During initialization, a strategy receives:
+
+```
+securities
+initial_cash
+options
+```
+
+There are no prices in `init_context`
+
+On each step it receives:
+```
+current date
+current prices
+current cash
+current holdings
+```
+
+:::info
+The interface supplies neither a complete market nor a function for requesting another row.
+A startegy must **ONLY** remember earlier information in its private state
+:::
+
+Backtest itself holds the market rows. Its loop takes the next row and constructs an observation from the row alone
+
+The observation type establishes the available fields. The engine implementation establishes that those fields contain the 
+correct current row.
+
+For example the `future_prices_test` from `test_backtest.ml` is a test that only has the last row modified.
+Meaning that each portfolio snapshot up until that point must remain identical. \
+
+```ocaml title="test_backtest.ml"
+(** Checks that changing only the final price row changes later results while
+    preserving every earlier order, outcome, and portfolio snapshot. *)
+let future_prices_test _ =
+  let original =
+    run Strategy.Momentum.name Strategy.Momentum.init Strategy.Momentum.step
+      "../data/handout.csv"
+  in
+  with_market
+    "date,ALFA,BETA\n\
+     2024-01-02,10.00,25.00\n\
+     2024-01-03,12.00,20.00\n\
+     2024-01-04,0.01,999.99\n" (fun market ->
+      let changed =
+        get_ok
+          (Backtest.run ~name:Strategy.Momentum.name
+             ~init:Strategy.Momentum.init ~step:Strategy.Momentum.step market
+             ~initial_cash:10000)
+      in
+      let prefix result =
+        List.filter
+          (fun (date, _, _, _, _, _) -> date < "2024-01-04")
+          (snapshots result)
+      in
+      assert_equal (prefix original) (prefix changed);
+      assert_bool "Later prices affect only later results"
+        (original.final_value <> changed.final_value))
+```
+
+:::info
+Because we record a snapshot during each step, and we only access our history which is a 
+`snapshot list`, there is no way to access future information
+:::
+
+## Reporting Errors
+
+Consider:
+
+```bash
+dune exec bin/main.exe -- missing.csv cash out.csv --cash 0.00
+```
+
+`Command.parse` rejects the nonpositive cash before attempting to open `missing.csv`
+
+It uses `OptParser.error` to produce usage information and a specific error, then exits unsuccessfully
+
+```ocaml title="command.ml"
+(** [parse ()] parses [Sys.argv] once with [BatOptParse]. Checks exactly three
+    positional arguments, a recognized strategy, and a required positive
+    two-decimal cash amount before any market file is opened. Options use names
+    without dashes. Built-in [-h]/[--help] prints help and exits successfully.
+    Invalid arguments print usage and a specific error, then exit
+    unsuccessfully. *)
+let parse () =
+  let parser =
+    OptParser.make
+      ~usage:
+        "%prog MARKET.csv STRATEGY EQUITY.csv --cash DOLLARS [--hold SYMBOL]"
+      ~description:
+        "Backtest cash, buy-and-hold, or momentum against historical prices."
+      ()
+  in
+  let cash = StdOpt.str_option ~metavar:"DOLLARS" () in
+  let hold = StdOpt.str_option ~metavar:"SYMBOL" () in
+  OptParser.add parser ~long_name:"cash"
+    ~help:"positive initial cash, e.g. 10000.00" cash;
+  OptParser.add parser ~long_name:"hold" ~help:"security bought by buy-and-hold"
+    hold;
+  let fail message =
+    OptParser.error parser message;
+    exit 1
+  in
+  let positional = OptParser.parse_argv parser in
+  match positional with
+  | [ market_file; strategy; equity_file ] ->
+      let strategy =
+        match strategy with
+        | "cash" -> Cash
+        | "buy-and-hold" -> Buy_and_hold
+        | "momentum" -> Momentum
+        | unknown ->
+            fail
+              (Printf.sprintf
+                 "Unknown strategy %S; choose cash, buy-and-hold, or momentum"
+                 unknown)
+      in
+      let initial_cash =
+        match Opt.opt cash with
+        | None -> fail "Missing required --cash DOLLARS"
+        | Some text -> (
+            match Money.convert_cents text with
+            | Ok cents when cents > 0 -> cents
+            | _ ->
+                fail
+                  "--cash must be a positive amount with exactly two decimal \
+                   places (e.g. 10000.00)")
+      in
+      let options =
+        match Opt.opt hold with
+        | None -> []
+        | Some security -> [ ("hold", security) ]
+      in
+      { market_file; strategy; equity_file; initial_cash; options }
+  | _ ->
+      fail
+        "Expected exactly three positional arguments: MARKET.csv STRATEGY \
+         EQUITY.csv"
+```
+
+Validation occurs in two phases:
+
+**Before opening the market:**
+Positional argument count, strategy name, required valid positive cash
+
+**After loading the market:**
+Buy-and-hold's required security opetion and exact security-name match
+
+Checking `--hold` requires the market's header. For example, `"ALFA"` is valid only if that exact name appears among its securities.
+
+With valid arguments but a missing input file, `Market.load` catches `Sys_error` and returns `Error message`. Main prints the message to 
+a standard error and exits with status `1`
+
+## Justifying an OUnit test
+
+In `test_validation.ml` we will use the `buy_tiny` test. 
+
+ZED initially costs $3.00:
+
+```
+Shares = floor($10.00 / $3.00) = 3
+Cash   = $10.00 − 3 × $3.00 = $1.00
+```
+
+Cash stays at $1.00 and holdings stay at 3 ZED shares throughout
+
+## Cram testing
+
+
+
