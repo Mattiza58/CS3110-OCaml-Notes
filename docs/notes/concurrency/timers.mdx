@@ -1,0 +1,14 @@
+# Timers
+
+Besides I/O, there is another parallel task that `Lwt` can ask of the OS:
+
+**Start a timer.**
+
+```ocaml
+Lwt_unix.sleep : float -> unit Lwt.t
+(** [sleep d] is a promise that remains in a pedning state for at least [d] seconds before being fufilled*)
+```
+
+## Two new ideas
+
+Handlers"

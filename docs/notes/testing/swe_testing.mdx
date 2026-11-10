@@ -1,0 +1,136 @@
+# SWE Testing Principles
+
+**Bug**: Suggests something just wandered in [IEEE 729]
+
+**Fault**: result of human error in software system
+- E.g., implementation doesn't match design, or design doesn't match requirements
+- Might never appear to end user
+
+**Failure:** violation of requirements
+- Something goes wrong for end user
+
+## Validation
+
+Does a program behave as intended? **Testing** is a process for Validation. **Debugging**
+determines the cause of unintended behavior. **Defensive programming** is implementing techniques
+for making validation and debugging easier.
+
+The goal of testing is to find failures so that we can correct their causes, and 
+build confidence the program behaves as intended.
+
+## Black/Glass Box Testing
+
+**Black Box:** test based on the specification
+
+Advantages: 
+- Tester is not biased by assumptions made in implementation
+- Tests are robust w.r.t. changes in implementation
+- Tests can be read and evaluated by reviewers who are not implementers
+
+**Glass box**: 
+
+Advantages:
+- Revelas whihc parts of the implementation not exercised by Tests
+- Guides the design of additonal test cases to improve test Set
+
+:::info
+Our methodology is to **cover** the program with test cases
+:::
+
+
+## Coverage
+
+```OCaml
+(** [max3 x y z] is the largest of [x], [y], and [z].)
+let max3 x y z = 
+    if x > y then
+        if x > z then x else z
+    else
+        if y > z then y else z
+```
+
+Tests accordign to black-box specifcation might lead to all kinds of inputs
+
+**But there are only four paths for the code to go through!**
+
+```OCaml
+(** [lead_year y*] is whether [y] is a leap_year in the Gregorian calendar. 
+Requires [y >= 1].)
+let leap_year y = 
+    y mod 4 = 0
+    &&
+    (y mod 100 <> 0 || y mod 400 = 0)
+```
+
+:::info
+Recall: Short cuicuit evaluation
+:::
+
+**We need test that cause evaluation to reach every condition.** Otherwise, we would have something
+untested code in the function.
+
+Suppose:
+
+```OCaml
+(** [lead_year y*] is whether [y] is a leap_year in the Gregorian calendar. 
+Requires [y >= 1].)
+let leap_year y = 
+    y mod 4 = 0
+    &&
+    (y mod 100 <> 0 || y mod 40 = 0)
+```
+
+**Test case #1:**
+- input: `y=2000`
+- exp. output: true
+- actual output: true
+- All points?: Yes
+- Fault found?: No
+
+## Kinds of Coverage
+
+**Statement coverage:** % of statments exercised by test Set
+
+**Branch coverage:** % of branches that have been evaluated to both `true` and `false` by 
+test Set
+
+**Condition coverage:** % of atomic conditions within decision expressions that have been evaluated to both 
+`true` and `false` by test set
+
+:::note
+
+
+
+**100% branch overage => 100% statement coverage**
+:::
+
+:::warning
+100% conditonal coverage does not imply 100% branch coverage
+:::
+
+Even with 100% coverage, you also need to do **black-box testing** against the specification
+
+But untested code is a soruce of undiscovered faults, so **glass-box testing** and **increasing coverage** is useful
+
+## Bisect
+
+Determining code coverage by yourself would be tedious and error-prone
+
+**Bisect** us OCaml tool for glass-box testing
+- It reports % coverage
+
+`Bisect_ppx` is a preprocessor that transforms the OCaml source code to insert `counters` at
+selected program points
+
+It instruments interesting control flow, but not every subexpression: some would be redudant
+
+100% coverage means every instrumented point was visited
+- not every possible execution path
+- not every possible outcome
+
+### Testing on Sorting Functions
+
+```bash
+dune test --instrument-with bisect_ppx --force
+```
+

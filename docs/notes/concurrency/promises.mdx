@@ -104,4 +104,102 @@ val map : ('a -> 'b) -> 'a Lwt.t -> 'b Lwt.tell
 (** [map f p ] schedules callback [f] to run after [p] is fufilled *)
 ````
 
+## Definitions
+
+In `Lwt`, a *promise* is a `ref`, a value that is permitted to mutate at
+most *once*. When created, it is like an empty box that contains nothing. We say that the 
+promise is `pending`. Eventually, a promise can be `fufilled`, which is like putting something
+into the box. Instead of being fulfille, the promise can instead be `rejected`, in which case the box is filled with
+an `exception`. 
+
+In either case, `fufilled` or `rejected`, we say that the promise is `resolved`. Regardless
+of whether the promise is resolved or rejected, once the box is filled, 
+its contents never change.
+
+:::info
+- The client code will need to **access** promises to make use of concurrency.
+This means querying promises whether they are `resolved` or `pending` and then make use of the resolved
+values
+- The library and OS code that implements concurrency will need to **mutate** the promise: either fufill it or reject it
+:::
+
+:::danger
+Client code **cannot** mutate promises
+:::
+
+From this, we will use an abstraction called a **resolver**.
+
+### Implementing Promises
+
+```ocaml
+(** A signature for Lwt-style promises, with better names. *)
+module type PROMISE = sig
+  type 'a state =
+    | Pending
+    | Fulfilled of 'a
+    | Rejected of exn
+
+  type 'a promise
+
+  type 'a resolver
+
+  (** [make ()] is a new promise and resolver. The promise is pending. *)
+  val make : unit -> 'a promise * 'a resolver
+
+  (** [return x] is a new promise that is already fulfilled with value
+      [x]. *)
+  val return : 'a -> 'a promise
+
+  (** [state p] is the state of the promise. *)
+  val state : 'a promise -> 'a state
+
+  (** [fulfill r x] fulfills the promise [p] associated with [r] with
+      value [x], meaning that [state p] will become [Fulfilled x].
+      Requires: [p] is pending. *)
+  val fulfill : 'a resolver -> 'a -> unit
+
+  (** [reject r x] rejects the promise [p] associated with [r] with
+      exception [x], meaning that [state p] will become [Rejected x].
+      Requires: [p] is pending. *)
+  val reject : 'a resolver -> exn -> unit
+end
+```
+
+To implement this interface , we can make a representation type of `'a promise` be a 
+`ref` ro a `state`
+
+```ocaml
+type 'a state = Pending | Fulfilled of 'a | Rejected of exn
+type 'a promise = 'a state ref
+```
+
+For a representation type of the resolver, we'll do something a little clever. It will simply be an `'a promise`
+
+In this way, the OS is the **producer**: responsible for computing a value then resolving a promise
+- It needs to write, or mutate, to the promise
+
+The program is the **consumer**: responsible for consuming the value if/when it becomes available
+- It needs to read, or access the value from the promise
+- It should ***never*** write to the promise 
+
+This way, a consumer is ***prohibited from writing** while the OS has access to the resolver
+
+
+## Lwt.bind
+
+```ocaml 
+bind: 'a t -> ('a -> 'b t) -> 'b tell
+```
+
+When the program calls `bind p1 f`
+- `bind` creates a new pending promise p3
+- `bind` tells th emain loop "schedule callbackf to run on p1 and put the result in p3"
+- `bind` then returns p3 immediately
+- Callback result later determined by:
+
+
+
+
+
+
 

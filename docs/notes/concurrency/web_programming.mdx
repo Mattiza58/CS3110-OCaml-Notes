@@ -1,0 +1,92 @@
+# Web Programming and OCaml
+
+Browsers ask us for URLs
+
+```
+http://12.0.0.1:8000/data
+```
+
+- `http`: Scheme -> use http
+- `127.0.0.1`: Address -> this computer
+- `:8000`: Port -> which service
+- `/path` Path -> whihc resource
+
+:::info
+Browsers speak HTTP to web servers. TCP delivers bytes. We still need an agreement about what messages
+to send
+:::
+
+`GET` method is the primary way to retreive data from a web server
+
+The web serve sends a message formatted like this 
+
+```html
+<p> Hello, World! </p>
+```
+
+## Response Codes
+
+- `200 OK`: request succeeded
+- `301 Moved Permanetly`: The URL has changed permanetly
+- `400 Bad Request`: Server cannot process
+- `404 Not Found`: Resource not Found
+
+```html
+<html>
+    <head>
+        <title>My Document</title>
+    </head>
+    <body>
+        <h1>header</h1>
+    </body>
+</html>
+```
+
+### Using Scripts
+
+```html
+<p id="message">Hello!</p>
+<button id = "greet">Greet</buttom>
+
+```
+
+```javascript
+const message = document.getElementById("message");
+const greet = document.getElementById("greet");
+greet.addEventListener("click", () => {
+    message.textContent = "Welcome"
+})
+```
+
+## OCaml Web Programming
+
+Write a `server.ml` module that is compiled to a native executable on a server.
+
+However, on the client-side, `client.ml` will be compile into bytecode and then translated
+into `js_of_ocaml` allowing for a `client.js` to be ran in a browser.
+
+### Writing a web serve in OCaml
+
+We could write our own `Lwt` network prorgam that listens on port 80 and speaks
+HTTP.
+
+Or we could use `Cohttp`, a web library that already does that!
+- Mostly we have to implement a callback of this type
+
+### Server-side
+
+```
+Cohttp.conn -> 
+Http.Request.t ->
+Cohttp_lwt.Body.t ->
+(Http.Response.t * Cohttp_lwt.Body.t) Lwt.t
+```
+
+### Client-side
+
+The `js_of_ocaml` compilier provides an interface to interact with the DOM:
+
+- Get elements
+- Set contents of elements
+- Convert between OCaml and JavaScript 
+

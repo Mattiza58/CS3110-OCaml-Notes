@@ -1,0 +1,197 @@
+# Git and Version control
+
+## Git
+Distributed VCS 
+- Fundamnetal abstraction: "snapshot" of files at a point in time
+- Differences can be analyzed
+- Novel contribution: fast and easy to create/switch snapshots
+
+**GitHub**: Web hosting for git 
+
+## Git From The Top Down
+
+```bash
+git init
+```
+```bash
+git add 
+```
+- Stages and tracks changes in a file within that point in time
+
+```bash
+git diff
+```
+- Differences in files you haven't staged yet
+
+```bash
+git diff --staged
+```
+- Difference in staged files
+
+```bash
+git commit -m <message>
+```
+- Commits changes with a message through `-m`
+
+```bash 
+git commit -a 
+```
+- Stages and commits changes 
+
+```bash
+git restore pokedex.ml
+```
+- Discard unstaged changes
+
+```bash 
+git switch -c <new-branch>
+```
+- Creates and switches to a new branch
+
+```bash 
+git merge
+```
+:::warning
+`git merge` could result in merge conflicts
+:::
+
+```bash 
+git branch -d
+```
+- Deletes the branch 
+
+## Git file lifecycle
+
+Untracked -> Unmodified -> Modified -> Staged 
+
+**Commits** form a DAG (Directed Acyclic Graph)
+
+- Directed: Every child commit point to their parents
+- Acyclic: Because each commit cannot be its own ancestor
+- Graph: Not a tree, because of merging
+
+Git is kind of like a filesystem: a way of locatiing data based on hierarchical name
+
+Git is a **content-addressable** filesystemL
+
+### Cyrptographic Hash
+
+Like a hash table's hash function 
+- Function from arbitrary-length input to a fixed-length output
+- Every output should be generated with roughly equal probability
+
+- Given a digest, it is `hard` to find an input that produces it
+- Given an input, hard to find a second input that produces same digest
+- Hard to find any pair of inputs that collide to the same digest 
+
+**Ex:** "word" -> `4B16 EEE2 AA1B 13AB ...`
+
+That has is the identfier for the obhect, aka object ID (OID)
+
+**Finding a file:**
+- Present its hash - not its name
+- Or effectively, the has is the name
+- Any prefix of at least 4 digits is acceptable as long as its unique
+
+### Implication of content-addressability
+Immutable:
+- Edits must create new files (with new hashes) that are stored
+- Eventually unreachable files can be garbage collected
+
+Automatically deduplicates:
+- If two files contain the same data, they produce the same hash
+- So there is only one copy
+
+## Objects
+
+`git` is where this filesystem is stored
+
+Stores four kinds of "files" which it calls **objects**:
+- **blob**: what we usually think of as a file - bytes of data
+- **tree**: what we usually think of as a directory - a listing of files and 
+direct subdirectories
+- **commit:** what we might think of as a read-only backup copy - a **snapshot** of the root along with
+metadata (i.e. who made the commit)
+
+:::info
+You can see all this in `.git/objects/`
+:::
+
+```bash 
+git hash-object 
+```
+- Returns the hash-name for the given file
+
+### Blobs
+- An object that stores the bytes of one file Version
+- Its filename and directory are recorded elseware
+
+:::warning
+Blobs are immutable
+:::
+
+- Identical contents can share one blob
+- Changing a file's contents necessarily 
+
+### Commit
+A **commit** object records:
+- A root **tree**
+- Parent commit objects: 0, 1, or more. 0 is the initial commit. 1 is the usual linear
+evolution. 2 is the usual merge
+- Metadata: Author, Committer *(in a big project, some authors might not be permitted to commit)*, Message
+
+The commit's object ID is a
+
+### Trees
+
+A **tree** records the *entries* in one directory
+- Each entry has a name, mode, and object ID
+- File entries point to Blobs
+- Directory entires point to other Trees
+
+## References and The Index
+
+A **reference** is a name that points to a Git object, usually a commit
+
+:::info
+References are **mutable**
+:::
+
+- You canee this in `.git/refs/heads`
+- Branch names are references to the latest commit object on a branch, aka the branch's 
+tip or heads
+- Creating a branch just creates a new reference - no copies needed
+- Deleting a branch just removes that reference - doesn't delete any objects
+
+A **symbolic reference** is a name that points to another reference
+- `HEAD` is a distinguished symbolic reference that points to "what you currently checked out"
+- See it in `.git/HEAD`
+
+### The Index
+The **index** is the snapshot 
+- Aka the **staging area**
+- Describes the entire next snapshot to be taken
+- Stores as a binary file `.git/index`
+
+So there are three kinds of trees:
+- `HEAD`'s tree: the last committted version on this checkout; stored as a Git tree object
+- The **index**: the snapshot you are preparing to commit; stored as a binary file
+- The **working directory**: your filesystem's tree, i.e., the files you are currently editing; stored by your OS's
+filesystem
+
+## Remotes
+
+Push an existing reporsitory onto GitHub
+
+```bash 
+git remote add origin <url>
+git branch -M main
+git push -u origin main
+```
+`-u` upstream; `origin` the name of the remote branch; `main` our main brancg
+
+
+
+
+
+
